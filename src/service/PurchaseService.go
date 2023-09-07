@@ -19,21 +19,15 @@ type PurchaseService interface {
 type Purchase struct {
 	PurchaseRepository repository.PurchaseRepository
 	ProductService     ProductService
-	MarketService      MarketService
-	UserService        UserService
 }
 
 func CreatePurchaseService(
 	purchaseRepository repository.PurchaseRepository,
 	productService ProductService,
-	marketService MarketService,
-	userService UserService,
 ) PurchaseService {
 	return &Purchase{
 		PurchaseRepository: purchaseRepository,
 		ProductService:     productService,
-		MarketService:      marketService,
-		UserService:        userService,
 	}
 }
 
