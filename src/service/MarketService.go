@@ -11,7 +11,7 @@ type MarketService interface {
 	Update(ctx context.Context, market model.Market) (model.Market, error)
 	GetById(ctx context.Context, id int64) (model.Market, error)
 	List(ctx context.Context) ([]model.Market, error)
-	Delete(ctx context.Context, id int64) error
+	Disable(ctx context.Context, id int64) error
 }
 
 type Market struct {
@@ -40,6 +40,14 @@ func (m Market) List(ctx context.Context) ([]model.Market, error) {
 	return m.MarketRepository.List(ctx)
 }
 
-func (m Market) Delete(ctx context.Context, id int64) error {
-	return m.MarketRepository.DeleteMarket(ctx, id)
+func (m Market) Disable(ctx context.Context, id int64) error {
+	market, err := m.MarketRepository.GetMarketById(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	market.Enabled = false
+
+	_, err = m.MarketRepository.UpdateMarket(ctx, market)
+	return err
 }

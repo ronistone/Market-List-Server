@@ -24,7 +24,7 @@ func (m MarketController) Register(echo *echo.Echo) error {
 	v1 := echo.Group("/v1/market")
 	v1.POST("/", m.CreateMarket)
 	v1.PUT("/:id", m.UpdateMarket)
-	v1.DELETE("/:id", m.DeleteMarket)
+	v1.DELETE("/:id", m.DisableMarket)
 	v1.GET("/:id", m.GetMarket)
 	v1.GET("/", m.GetAllMarkets)
 
@@ -54,11 +54,14 @@ func (m MarketController) UpdateMarket(c echo.Context) error {
 		return handleError(c, http.StatusBadRequest, err)
 	}
 
-	if market.Id != nil {
+	id := c.Param("id")
+	idValue, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
 		return handleError(c, http.StatusBadRequest, util.MakeError(util.INVALID_INPUT, "invalid Market Id"))
 	}
+	market.Id = &idValue
 
-	market, err := m.MarketService.Update(c.Request().Context(), market)
+	market, err = m.MarketService.Update(c.Request().Context(), market)
 
 	if err != nil {
 		return handleError(c, http.StatusUnprocessableEntity, err)
@@ -67,14 +70,14 @@ func (m MarketController) UpdateMarket(c echo.Context) error {
 	return c.JSON(http.StatusCreated, market)
 }
 
-func (m MarketController) DeleteMarket(c echo.Context) error {
+func (m MarketController) DisableMarket(c echo.Context) error {
 	id := c.Param("id")
 	idValue, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
 		return handleError(c, http.StatusBadRequest, util.MakeError(util.INVALID_INPUT, "invalid Market Id"))
 	}
 
-	err = m.MarketService.Delete(c.Request().Context(), idValue)
+	err = m.MarketService.Disable(c.Request().Context(), idValue)
 
 	if err != nil {
 		var mkError *util.MarketListError
