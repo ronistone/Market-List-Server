@@ -8,6 +8,7 @@ import (
 
 type ProductService interface {
 	Create(ctx context.Context, product model.Product) (model.Product, error)
+	Update(ctx context.Context, product model.Product) (model.Product, error)
 	GetByName(ctx context.Context, name string) ([]model.Product, error)
 	GetByEan(ctx context.Context, ean string) (model.Product, error)
 	GetById(ctx context.Context, id int64) (model.Product, error)
@@ -30,6 +31,10 @@ func CreateProductService(productRepository repository.ProductRepository, produc
 
 func (p Product) Create(ctx context.Context, product model.Product) (model.Product, error) {
 	return p.ProductRepository.CreateProduct(ctx, product)
+}
+
+func (p Product) Update(ctx context.Context, product model.Product) (model.Product, error) {
+	return p.ProductRepository.UpdateProduct(ctx, product)
 }
 
 func (p Product) GetByName(ctx context.Context, name string) ([]model.Product, error) {

@@ -37,7 +37,26 @@ func handleError(echo echo.Context, statusCode int, err error) error {
 }
 
 func (p ProductController) UpdateProduct(c echo.Context) error {
-	panic("not implemented")
+	var product model.Product
+
+	if err := c.Bind(&product); err != nil {
+		return handleError(c, http.StatusBadRequest, err)
+	}
+
+	id := c.Param("id")
+	idValue, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		return handleError(c, http.StatusBadRequest, util.MakeError(util.INVALID_INPUT, "invalid Product Id"))
+	}
+	product.Id = &idValue
+
+	product, err = p.productService.Update(c.Request().Context(), product)
+
+	if err != nil {
+		return handleError(c, http.StatusUnprocessableEntity, err)
+	}
+
+	return c.JSON(http.StatusCreated, product)
 }
 
 func (p ProductController) GetProductByName(c echo.Context) error {
