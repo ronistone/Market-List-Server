@@ -27,10 +27,10 @@ func CreateProductInstanceRepository(connection *dbr.Connection) ProductInstance
 
 func (p ProductInstance) CreateProduct(ctx context.Context, product model.ProductInstance) (model.ProductInstance, error) {
 	statement := p.DbConnection.NewSession(nil).SelectBySql(`
-	INSERT INTO PRODUCT_INSTANCE(id, product_id, market_id, price, precision,  created_at) 
-		values (default, ?, ?, ?, ?, default)
+	INSERT INTO PRODUCT_INSTANCE(id, product_id, market_id, price,  created_at) 
+		values (default, ?, ?, ?, default)
 	RETURNING *
-	`, product.Product.Id, product.Market.Id, product.Price, product.Precision)
+	`, product.Product.Id, product.Market.Id, product.Price)
 
 	_, err := statement.LoadContext(ctx, &product)
 	if err != nil {

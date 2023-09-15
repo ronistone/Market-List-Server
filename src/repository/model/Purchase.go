@@ -44,10 +44,11 @@ func (p PurchaseEntity) ToPurchase() model.Purchase {
 
 type PurchaseItemProductInstance struct {
 	PurchaseItemId           *int64     `db:"purchase_item_id"`
+	PurchaseItemPurchased    bool       `db:"purchase_item_purchased"`
+	PurchaseItemQuantity     int        `db:"purchase_item_quantity"`
 	ProductInstanceId        *int64     `db:"prod_instance_id"`
 	ProductId                *int64     `db:"prod_id"`
-	Price                    int        `db:"prod_price"`
-	Precision                int        `db:"prod_precision"`
+	Price                    int64      `db:"prod_price"`
 	ProductInstanceCreatedAt *time.Time `db:"prod_inst_created_at"`
 	ProductName              string     `db:"prod_name"`
 	ProductEan               *string    `db:"prod_ean"`
@@ -73,8 +74,9 @@ func (p PurchaseItemProductInstance) ToPurchaseItem() model.PurchaseItem {
 				UpdatedAt: p.ProductUpdatedAt,
 			},
 			Price:     p.Price,
-			Precision: p.Precision,
 			CreatedAt: p.ProductInstanceCreatedAt,
 		},
+		Purchased: p.PurchaseItemPurchased,
+		Quantity:  p.PurchaseItemQuantity,
 	}
 }

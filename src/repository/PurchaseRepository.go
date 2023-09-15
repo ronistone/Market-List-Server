@@ -36,7 +36,9 @@ const (
        p.unit prod_unit,
        p.size prod_size,
        p.created_at prod_created_at,
-       p.updated_at prod_updated_at
+       p.updated_at prod_updated_at,
+       pi.purchased purchase_item_purchased,
+       pi.quantity purchase_item_quantity
 
 FROM purchase_item pi, product_instance poi, product p
     where pi.product_instance_id = poi.id
@@ -108,8 +110,8 @@ func (p Purchase) DeletePurchase(ctx context.Context, id int64) error {
 
 func (p Purchase) AddPurchaseItem(ctx context.Context, purchaseId int64, item model.PurchaseItem) (model.Purchase, error) {
 	statement := p.DbConnection.NewSession(nil).SelectBySql(`
-	INSERT INTO PURCHASE_ITEM(ID, PRODUCT_INSTANCE_ID, PURCHASE_ID) 
-	values (default, ?, ?)`, *item.ProductInstance.Id, purchaseId)
+	INSERT INTO PURCHASE_ITEM(ID, PRODUCT_INSTANCE_ID, PURCHASE_ID, QUANTITY) 
+	values (default, ?, ?, ?)`, *item.ProductInstance.Id, purchaseId, item.Quantity)
 
 	_, err := statement.LoadContext(ctx, &item)
 	if err != nil {
