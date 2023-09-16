@@ -153,6 +153,7 @@ func (p Purchase) RemovePurchaseItem(ctx context.Context, purchaseId int64, item
 func (p Purchase) getAllPurchaseItemByPurchaseId(ctx context.Context, purchaseId int64, purchase model.Purchase) ([]model.PurchaseItem, error) {
 	statement := p.DbConnection.NewSession(nil).SelectBySql(FETCH_PURCHASE_ITEM+`
 	AND pi.purchase_id = ?
+	ORDER BY purchase_item_purchased, purchase_item_quantity ASC
 	`, purchaseId)
 
 	var items []repositoryModel.PurchaseItemProductInstance
