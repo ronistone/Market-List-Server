@@ -137,7 +137,11 @@ func (p Purchase) calculateRealPrice(productInstance model.ProductInstance) floa
 }
 
 func (p Purchase) RemoveItem(ctx context.Context, purchaseId int64, purchaseItemId int64) (model.Purchase, error) {
-	return p.PurchaseRepository.RemovePurchaseItem(ctx, purchaseId, purchaseItemId)
+	_, err := p.PurchaseRepository.RemovePurchaseItem(ctx, purchaseId, purchaseItemId)
+	if err != nil {
+		return model.Purchase{}, err
+	}
+	return p.GetPurchase(ctx, purchaseId)
 }
 
 func (p Purchase) UpdateItem(ctx context.Context, purchaseId int64, purchaseItemId int64, item model.PurchaseItem) (model.Purchase, error) {
