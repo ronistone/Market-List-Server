@@ -15,8 +15,10 @@ type PurchaseRepository interface {
 	DeletePurchase(ctx context.Context, id int64) error
 	AddPurchaseItem(ctx context.Context, purchaseId int64, item model.PurchaseItem) (model.Purchase, error)
 	RemovePurchaseItem(ctx context.Context, purchaseId int64, itemId int64) (model.Purchase, error)
+	UpdatePurchaseItem(ctx context.Context, purchaseId int64, itemId int64, item model.PurchaseItem) error
 	GetPurchaseById(ctx context.Context, id int64) (model.Purchase, error)
 	GetPurchaseByIdFetchItems(ctx context.Context, id int64) (model.Purchase, error)
+	GetPurchaseItemById(ctx context.Context, id int64) (model.PurchaseItem, error)
 	ListPurchase(ctx context.Context, userId int64) ([]model.Purchase, error)
 }
 
@@ -108,6 +110,19 @@ func (p Purchase) DeletePurchase(ctx context.Context, id int64) error {
 	return nil
 }
 
+func (p Purchase) UpdatePurchaseItem(ctx context.Context, purchaseId int64, itemId int64, item model.PurchaseItem) error {
+	statement := p.DbConnection.NewSession(nil).DeleteBySql(`
+	UPDATE PURCHASE_ITEM SET purchased = ?, quantity = ? where purchase_id = ? AND id = ?
+	`, item.Purchased, item.Quantity, purchaseId, itemId)
+
+	_, err := statement.ExecContext(ctx)
+	if err != nil {
+		return util.MakeErrorUnknown(err)
+	}
+
+	return nil
+}
+
 func (p Purchase) AddPurchaseItem(ctx context.Context, purchaseId int64, item model.PurchaseItem) (model.Purchase, error) {
 	statement := p.DbConnection.NewSession(nil).SelectBySql(`
 	INSERT INTO PURCHASE_ITEM(ID, PRODUCT_INSTANCE_ID, PURCHASE_ID, QUANTITY) 
@@ -190,6 +205,23 @@ func (p Purchase) getPurchaseByIdInternal(ctx context.Context, id int64, fetchIt
 	}
 
 	return result, nil
+}
+
+func (p Purchase) GetPurchaseItemById(ctx context.Context, id int64) (model.PurchaseItem, error) {
+	statement := p.DbConnection.NewSession(nil).SelectBySql(`
+	SELECT * FROM purchase_item where id = ?
+	`, id)
+
+	var item model.PurchaseItem
+	err := statement.LoadOne(&item)
+	if err != nil {
+		if errors.Is(err, dbr.ErrNotFound) {
+			return model.PurchaseItem{}, util.MakeError(util.NOT_FOUND, fmt.Sprintf("Purchase Item %d not found", id))
+		}
+		return model.PurchaseItem{}, util.MakeErrorUnknown(err)
+	}
+
+	return item, nil
 }
 
 func (p Purchase) ListPurchase(ctx context.Context, userId int64) ([]model.Purchase, error) {

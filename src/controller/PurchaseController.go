@@ -28,6 +28,7 @@ func (p PurchaseController) Register(echo *echo.Echo) error {
 	v1.DELETE("/:id/item/:itemId", p.RemoveItem)
 	v1.GET("/:id", p.GetPurchase)
 	v1.GET("/", p.GetAllPurchase)
+	v1.PUT("/:id/item/:itemId", p.UpdateItem)
 
 	return nil
 }
@@ -87,6 +88,38 @@ func (p PurchaseController) RemoveItem(c echo.Context) error {
 	}
 
 	purchase, err := p.PurchaseService.RemoveItem(c.Request().Context(), idValue, itemIdValue)
+
+	if err != nil {
+		var mkError *util.MarketListError
+		if errors.As(err, &mkError) && mkError.ErrorType == util.NOT_FOUND {
+			return handleError(c, http.StatusNotFound, mkError)
+		}
+		return handleError(c, http.StatusInternalServerError, err)
+	}
+
+	return c.JSON(http.StatusOK, purchase)
+}
+
+func (p PurchaseController) UpdateItem(c echo.Context) error {
+	id := c.Param("id")
+	idValue, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		return handleError(c, http.StatusBadRequest, util.MakeError(util.INVALID_INPUT, "invalid Purchase Id"))
+	}
+
+	itemId := c.Param("itemId")
+	itemIdValue, err := strconv.ParseInt(itemId, 10, 64)
+	if err != nil {
+		return handleError(c, http.StatusBadRequest, util.MakeError(util.INVALID_INPUT, "invalid Purchase Item Id"))
+	}
+
+	itemPurchase := model.PurchaseItem{}
+	err = (&echo.DefaultBinder{}).BindBody(c, &itemPurchase)
+	if err != nil {
+		return handleError(c, http.StatusBadRequest, util.MakeError(util.INVALID_INPUT, "invalid Purchase Item Update"))
+	}
+
+	purchase, err := p.PurchaseService.UpdateItem(c.Request().Context(), idValue, itemIdValue, itemPurchase)
 
 	if err != nil {
 		var mkError *util.MarketListError

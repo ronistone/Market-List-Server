@@ -12,6 +12,7 @@ type PurchaseService interface {
 	CreatePurchase(ctx context.Context, purchase model.Purchase) (model.Purchase, error)
 	AddItem(ctx context.Context, purchaseId int64, purchaseItem model.PurchaseItem) (model.Purchase, error)
 	RemoveItem(ctx context.Context, purchaseId int64, purchaseItemId int64) (model.Purchase, error)
+	UpdateItem(ctx context.Context, purchaseId int64, purchaseItemId int64, item model.PurchaseItem) (model.Purchase, error)
 	GetPurchase(ctx context.Context, id int64) (model.Purchase, error)
 	GetAllPurchase(ctx context.Context) ([]model.Purchase, error)
 	DeletePurchase(ctx context.Context, id int64) error
@@ -137,6 +138,22 @@ func (p Purchase) calculateRealPrice(productInstance model.ProductInstance) floa
 
 func (p Purchase) RemoveItem(ctx context.Context, purchaseId int64, purchaseItemId int64) (model.Purchase, error) {
 	return p.PurchaseRepository.RemovePurchaseItem(ctx, purchaseId, purchaseItemId)
+}
+
+func (p Purchase) UpdateItem(ctx context.Context, purchaseId int64, purchaseItemId int64, item model.PurchaseItem) (model.Purchase, error) {
+	purchaseItem, err := p.PurchaseRepository.GetPurchaseItemById(ctx, purchaseItemId)
+	if err != nil {
+		return model.Purchase{}, util.MakeError(util.NOT_FOUND, "Failed to get purchase Item")
+	}
+
+	purchaseItem.Purchased = item.Purchased
+	purchaseItem.Quantity = item.Quantity
+
+	err = p.PurchaseRepository.UpdatePurchaseItem(ctx, purchaseId, purchaseItemId, purchaseItem)
+	if err != nil {
+		return model.Purchase{}, err
+	}
+	return p.GetPurchase(ctx, purchaseId)
 }
 
 func (p Purchase) GetPurchase(ctx context.Context, id int64) (model.Purchase, error) {
