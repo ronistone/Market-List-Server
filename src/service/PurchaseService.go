@@ -104,6 +104,16 @@ func (p Purchase) processProduct(ctx context.Context, purchaseItem model.Purchas
 			return model.Product{}, err
 		}
 		productFound = &createdProduct
+	} else {
+		productFound.Name = product.Name
+		productFound.Ean = product.Ean
+		productFound.Size = product.Size
+		productFound.Unit = product.Unit
+		updatedProduct, err := p.ProductService.Update(ctx, *productFound)
+		if err != nil {
+			return model.Product{}, err
+		}
+		productFound = &updatedProduct
 	}
 	return *productFound, nil
 }
@@ -132,8 +142,12 @@ func (p Purchase) processProductInstance(ctx context.Context, purchaseItem model
 	return *productInstanceFound, nil
 }
 
-func (p Purchase) calculateRealPrice(productInstance model.ProductInstance) float64 {
-	return float64(productInstance.Price) / math.Pow10(2)
+func (p Purchase) calculateRealPrice(productInstance model.ProductInstance) *float64 {
+	if productInstance.Price != nil {
+		price := float64(*productInstance.Price) / math.Pow10(2)
+		return &price
+	}
+	return nil
 }
 
 func (p Purchase) RemoveItem(ctx context.Context, purchaseId int64, purchaseItemId int64) (model.Purchase, error) {
@@ -173,11 +187,15 @@ func (p Purchase) GetPurchase(ctx context.Context, id int64) (model.Purchase, er
 	for _, item := range purchase.Items {
 		instance = item.ProductInstance
 
-		if item.Purchased {
-			purchase.TotalSpent += instance.Price * int64(item.Quantity)
+		if instance.Price == nil {
+			continue
 		}
 
-		purchase.TotalExpected += instance.Price * int64(item.Quantity)
+		if item.Purchased {
+			purchase.TotalSpent += *instance.Price * int64(item.Quantity)
+		}
+
+		purchase.TotalExpected += *instance.Price * int64(item.Quantity)
 	}
 
 	return purchase, nil

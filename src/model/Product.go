@@ -16,6 +16,6 @@ type ProductInstance struct {
 	Id        *int64     `json:"id"`
 	Product   Product    `json:"product"`
 	Market    *Market    `json:"market"`
-	Price     int64      `json:"price"`
+	Price     *int64     `json:"price"`
 	CreatedAt *time.Time `json:"createdAt"`
 }

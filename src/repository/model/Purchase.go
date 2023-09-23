@@ -48,7 +48,7 @@ type PurchaseItemProductInstance struct {
 	PurchaseItemQuantity     int        `db:"purchase_item_quantity"`
 	ProductInstanceId        *int64     `db:"prod_instance_id"`
 	ProductId                *int64     `db:"prod_id"`
-	Price                    int64      `db:"prod_price"`
+	Price                    *int64     `db:"prod_price"`
 	ProductInstanceCreatedAt *time.Time `db:"prod_inst_created_at"`
 	ProductName              string     `db:"prod_name"`
 	ProductEan               *string    `db:"prod_ean"`
