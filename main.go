@@ -8,6 +8,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"
 	_ "github.com/lib/pq"
+	"github.com/ronistone/market-list/src/config"
 	"github.com/ronistone/market-list/src/controller"
 	"github.com/ronistone/market-list/src/repository"
 	"github.com/ronistone/market-list/src/service"
@@ -49,6 +50,10 @@ func GracefullyStart(e *echo.Echo) {
 }
 
 func main() {
+	err := config.Init()
+	if err != nil {
+		panic(err)
+	}
 	e := ConfigureServer()
 
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
@@ -58,7 +63,7 @@ func main() {
 		}
 	})
 
-	db, err := dbr.Open("postgres", "host=localhost port=5432 user=postgres password='market-list' dbname=market_list sslmode=disable timezone=UTC", nil)
+	db, err := dbr.Open("postgres", config.GetDatabaseDSN(), nil)
 	if err != nil {
 		panic(err)
 	}

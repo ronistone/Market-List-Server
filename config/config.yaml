@@ -1,0 +1,7 @@
+
+database:
+  name: 'market_list'
+  host: 'localhost'
+  port: 5432
+  username: 'postgres'
+  password: 'market-list'
