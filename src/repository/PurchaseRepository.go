@@ -18,7 +18,7 @@ type PurchaseRepository interface {
 	UpdatePurchaseItem(ctx context.Context, purchaseId int64, itemId int64, item model.PurchaseItem) error
 	GetPurchaseById(ctx context.Context, id int64) (model.Purchase, error)
 	GetPurchaseByIdFetchItems(ctx context.Context, id int64) (model.Purchase, error)
-	GetPurchaseItemById(ctx context.Context, id int64) (model.PurchaseItem, error)
+	GetPurchaseItemById(ctx context.Context, purchaseId int64, id int64) (model.PurchaseItem, error)
 	ListPurchase(ctx context.Context, userId int64) ([]model.Purchase, error)
 }
 
@@ -40,11 +40,17 @@ const (
        p.created_at prod_created_at,
        p.updated_at prod_updated_at,
        pi.purchased purchase_item_purchased,
-       pi.quantity purchase_item_quantity
+       pi.quantity purchase_item_quantity,
+       m.id market_id,
+       m.name market_name,
+       m.created_at market_created_at,
+       m.updated_at market_update_at,
+       m.enabled market_enabled
 
-FROM purchase_item pi, product_instance poi, product p
+FROM purchase_item pi, product_instance poi, product p, market m
     where pi.product_instance_id = poi.id
 	AND p.id = poi.product_id
+	AND poi.market_id = m.id
 `
 	FETCH_PURCHASE = `SELECT
 		p.id purchase_id,
@@ -112,8 +118,8 @@ func (p Purchase) DeletePurchase(ctx context.Context, id int64) error {
 
 func (p Purchase) UpdatePurchaseItem(ctx context.Context, purchaseId int64, itemId int64, item model.PurchaseItem) error {
 	statement := p.DbConnection.NewSession(nil).DeleteBySql(`
-	UPDATE PURCHASE_ITEM SET purchased = ?, quantity = ? where purchase_id = ? AND id = ?
-	`, item.Purchased, item.Quantity, purchaseId, itemId)
+	UPDATE PURCHASE_ITEM SET product_instance_id = ?, purchased = ?, quantity = ? where purchase_id = ? AND id = ?
+	`, item.ProductInstance.Id, item.Purchased, item.Quantity, purchaseId, itemId)
 
 	_, err := statement.ExecContext(ctx)
 	if err != nil {
@@ -208,21 +214,20 @@ func (p Purchase) getPurchaseByIdInternal(ctx context.Context, id int64, fetchIt
 	return result, nil
 }
 
-func (p Purchase) GetPurchaseItemById(ctx context.Context, id int64) (model.PurchaseItem, error) {
-	statement := p.DbConnection.NewSession(nil).SelectBySql(`
-	SELECT * FROM purchase_item where id = ?
-	`, id)
+func (p Purchase) GetPurchaseItemById(ctx context.Context, purchaseId int64, id int64) (model.PurchaseItem, error) {
+	statement := p.DbConnection.NewSession(nil).SelectBySql(FETCH_PURCHASE_ITEM+`
+	AND pi.purchase_id = ?
+	AND pi.id = ?
+	ORDER BY purchase_item_purchased, purchase_item_quantity ASC
+	`, purchaseId, id)
 
-	var item model.PurchaseItem
+	var item repositoryModel.PurchaseItemProductInstance
 	err := statement.LoadOne(&item)
 	if err != nil {
-		if errors.Is(err, dbr.ErrNotFound) {
-			return model.PurchaseItem{}, util.MakeError(util.NOT_FOUND, fmt.Sprintf("Purchase Item %d not found", id))
-		}
 		return model.PurchaseItem{}, util.MakeErrorUnknown(err)
 	}
 
-	return item, nil
+	return item.ToPurchaseItem(), nil
 }
 
 func (p Purchase) ListPurchase(ctx context.Context, userId int64) ([]model.Purchase, error) {

@@ -16,6 +16,7 @@ type PurchaseService interface {
 	GetPurchase(ctx context.Context, id int64) (model.Purchase, error)
 	GetAllPurchase(ctx context.Context) ([]model.Purchase, error)
 	DeletePurchase(ctx context.Context, id int64) error
+	GetItem(ctx context.Context, purchaseId int64, purchaseItemId int64) (model.PurchaseItem, error)
 }
 type Purchase struct {
 	PurchaseRepository repository.PurchaseRepository
@@ -128,15 +129,28 @@ func (p Purchase) processProductInstance(ctx context.Context, purchaseItem model
 		if err == nil {
 			productInstanceFound = &productInstanceQuery
 		}
+	} else if productInstance.Id != nil {
+		productInstanceQuery, err := p.ProductService.GetProductInstanceById(ctx, *productInstance.Id)
+		if err == nil {
+			productInstanceFound = &productInstanceQuery
+		}
 	} else {
 		return model.ProductInstance{}, util.MakeError(util.UNKNOWN_ERROR, "Without Product Id cant create product instance")
 	}
-	if productInstanceFound == nil || p.calculateRealPrice(*productInstanceFound) != p.calculateRealPrice(productInstance) {
+	if productInstanceFound == nil || (productInstanceFound.Price != nil && p.calculateRealPrice(*productInstanceFound) != p.calculateRealPrice(productInstance)) {
 		createdInstance, err := p.ProductService.CreateInstance(ctx, productInstance)
 		if err != nil {
 			return model.ProductInstance{}, err
 		}
 		productInstanceFound = &createdInstance
+	} else if productInstanceFound != nil {
+		productInstanceFound.Price = productInstance.Price
+
+		updatedInstance, err := p.ProductService.UpdateInstance(ctx, *productInstanceFound)
+		if err != nil {
+			return model.ProductInstance{}, err
+		}
+		productInstanceFound = &updatedInstance
 	}
 
 	return *productInstanceFound, nil
@@ -159,15 +173,24 @@ func (p Purchase) RemoveItem(ctx context.Context, purchaseId int64, purchaseItem
 }
 
 func (p Purchase) UpdateItem(ctx context.Context, purchaseId int64, purchaseItemId int64, item model.PurchaseItem) (model.Purchase, error) {
-	purchaseItem, err := p.PurchaseRepository.GetPurchaseItemById(ctx, purchaseItemId)
+	_, err := p.PurchaseRepository.GetPurchaseItemById(ctx, purchaseId, purchaseItemId)
 	if err != nil {
 		return model.Purchase{}, util.MakeError(util.NOT_FOUND, "Failed to get purchase Item")
 	}
 
-	purchaseItem.Purchased = item.Purchased
-	purchaseItem.Quantity = item.Quantity
+	product, err := p.processProduct(ctx, item)
+	if err != nil {
+		return model.Purchase{}, err
+	}
+	item.ProductInstance.Product = product
 
-	err = p.PurchaseRepository.UpdatePurchaseItem(ctx, purchaseId, purchaseItemId, purchaseItem)
+	productInstance, err := p.processProductInstance(ctx, item)
+	if err != nil {
+		return model.Purchase{}, err
+	}
+	item.ProductInstance.Id = productInstance.Id
+
+	err = p.PurchaseRepository.UpdatePurchaseItem(ctx, purchaseId, purchaseItemId, item)
 	if err != nil {
 		return model.Purchase{}, err
 	}
@@ -220,4 +243,8 @@ func (p Purchase) DeletePurchase(ctx context.Context, id int64) error {
 	}
 
 	return p.PurchaseRepository.DeletePurchase(ctx, id)
+}
+
+func (p Purchase) GetItem(ctx context.Context, purchaseId int64, purchaseItemId int64) (model.PurchaseItem, error) {
+	return p.PurchaseRepository.GetPurchaseItemById(ctx, purchaseId, purchaseItemId)
 }

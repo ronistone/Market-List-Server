@@ -29,6 +29,7 @@ func (p PurchaseController) Register(echo *echo.Echo) error {
 	v1.GET("/:id", p.GetPurchase)
 	v1.GET("/", p.GetAllPurchase)
 	v1.PUT("/:id/item/:itemId", p.UpdateItem)
+	v1.GET("/:id/item/:itemId", p.GetItem)
 
 	return nil
 }
@@ -181,4 +182,30 @@ func (p PurchaseController) DeletePurchase(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, nil)
+}
+
+func (p PurchaseController) GetItem(c echo.Context) error {
+	id := c.Param("id")
+	idValue, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		return handleError(c, http.StatusBadRequest, util.MakeError(util.INVALID_INPUT, "invalid Purchase Id"))
+	}
+
+	itemId := c.Param("itemId")
+	itemIdValue, err := strconv.ParseInt(itemId, 10, 64)
+	if err != nil {
+		return handleError(c, http.StatusBadRequest, util.MakeError(util.INVALID_INPUT, "invalid Purchase Item Id"))
+	}
+
+	item, err := p.PurchaseService.GetItem(c.Request().Context(), idValue, itemIdValue)
+
+	if err != nil {
+		var mkError *util.MarketListError
+		if errors.As(err, &mkError) && mkError.ErrorType == util.NOT_FOUND {
+			return handleError(c, http.StatusNotFound, mkError)
+		}
+		return handleError(c, http.StatusInternalServerError, err)
+	}
+
+	return c.JSON(http.StatusOK, item)
 }

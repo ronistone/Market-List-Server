@@ -56,6 +56,11 @@ type PurchaseItemProductInstance struct {
 	ProductSize              int64      `db:"prod_size"`
 	ProductCreatedAt         *time.Time `db:"prod_created_at"`
 	ProductUpdatedAt         *time.Time `db:"prod_updated_at"`
+	MarketId                 *int64     `db:"market_id"`
+	MarketName               string     `db:"market_name"`
+	MarketCreatedAt          *time.Time `db:"market_created_at"`
+	MarketUpdatedAt          *time.Time `db:"market_update_at"`
+	MarketEnabled            bool       `db:"market_enabled"`
 }
 
 func (p PurchaseItemProductInstance) ToPurchaseItem() model.PurchaseItem {
@@ -72,6 +77,13 @@ func (p PurchaseItemProductInstance) ToPurchaseItem() model.PurchaseItem {
 				Size:      p.ProductSize,
 				CreatedAt: p.ProductCreatedAt,
 				UpdatedAt: p.ProductUpdatedAt,
+			},
+			Market: &model.Market{
+				Id:        p.MarketId,
+				Name:      p.MarketName,
+				Enabled:   p.MarketEnabled,
+				CreatedAt: p.MarketCreatedAt,
+				UpdatedAt: p.MarketUpdatedAt,
 			},
 			Price:     p.Price,
 			CreatedAt: p.ProductInstanceCreatedAt,

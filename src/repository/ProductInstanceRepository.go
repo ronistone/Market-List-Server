@@ -13,6 +13,8 @@ type ProductInstanceRepository interface {
 	CreateProduct(ctx context.Context, product model.ProductInstance) (model.ProductInstance, error)
 	GetLastProductInstanceByProductId(ctx context.Context, id int64) (model.ProductInstance, error)
 	GetProductInstanceByPurchase(ctx context.Context, purchaseId int64) ([]model.ProductInstance, error)
+	GetProductInstanceById(ctx context.Context, id int64) (model.ProductInstance, error)
+	Update(ctx context.Context, instance model.ProductInstance) (model.ProductInstance, error)
 }
 
 type ProductInstance struct {
@@ -77,4 +79,39 @@ func (p ProductInstance) GetProductInstanceByPurchase(ctx context.Context, purch
 	}
 
 	return product, nil
+}
+
+func (p ProductInstance) GetProductInstanceById(ctx context.Context, id int64) (model.ProductInstance, error) {
+	statement := p.DbConnection.NewSession(nil).SelectBySql(`SELECT * FROM PRODUCT_INSTANCE
+         where id = ?`, id)
+
+	var product model.ProductInstance
+	err := statement.LoadOne(&product)
+
+	if err != nil {
+		if errors.Is(err, dbr.ErrNotFound) {
+			return model.ProductInstance{}, util.MakeError(util.NOT_FOUND, fmt.Sprintf("Product Instance %d not found", id))
+		}
+		return model.ProductInstance{}, util.MakeErrorUnknown(err)
+	}
+
+	return product, nil
+}
+
+func (p ProductInstance) Update(ctx context.Context, instance model.ProductInstance) (model.ProductInstance, error) {
+	if instance.Id == nil {
+		return model.ProductInstance{}, util.MakeError(util.INVALID_INPUT, "invalid Product Id")
+	}
+	statement := p.DbConnection.NewSession(nil).SelectBySql(`
+	UPDATE product_instance SET price = ? 
+		WHERE id = ?
+	RETURNING *
+	`, instance.Price, instance.Id)
+
+	_, err := statement.LoadContext(ctx, &instance)
+	if err != nil {
+		return model.ProductInstance{}, util.MakeErrorUnknown(err)
+	}
+
+	return instance, nil
 }
