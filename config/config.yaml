@@ -5,3 +5,4 @@ database:
   port: 5432
   username: 'postgres'
   password: 'market-list'
+  schema: 'market_list'

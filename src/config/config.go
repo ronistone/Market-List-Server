@@ -33,8 +33,9 @@ func GetDatabaseDSN() string {
 	password := k.Get("database.password")
 	port := k.Get("database.port")
 	database := k.Get("database.name")
+	schema := k.Get("database.schema")
 
-	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable timezone=UTC",
-		host, port, username, password, database)
+	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s search_path=%s sslmode=disable timezone=UTC",
+		host, port, username, password, database, schema)
 
 }
