@@ -56,3 +56,8 @@ CREATE TABLE PURCHASE_ITEM
     PURCHASED           BOOLEAN default FALSE,
     QUANTITY            INT     default 1
 );
+
+INSERT INTO MARKET_USER(ID, EMAIL, NAME, PASSWORD) VALUES (1, 'ronistonejunior@gmail.com', 'Ronistone Junior', '');
+
+
+CREATE EXTENSION pg_trgm;
