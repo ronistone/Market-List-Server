@@ -6,3 +6,9 @@ database:
   username: 'postgres'
   password: 'market-list'
   schema: 'market_list'
+
+server:
+  tls:
+    enabled: false
+    crt: 'server.crt'
+    key: 'server.key'

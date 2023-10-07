@@ -39,3 +39,15 @@ func GetDatabaseDSN() string {
 		host, port, username, password, database, schema)
 
 }
+
+func GetTlsEnabled() bool {
+	return k.Bool("server.tls.enabled")
+}
+
+func GetTlsCrtPath() string {
+	return k.String("server.tls.crt")
+}
+
+func GetTlsKeyPath() string {
+	return k.String("server.tls.key")
+}

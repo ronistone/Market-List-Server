@@ -31,7 +31,18 @@ func ConfigureServer() *echo.Echo {
 
 func GracefullyStart(e *echo.Echo) {
 	go func() {
-		if err := e.Start("0.0.0.0:8080"); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		tlsEnabled := config.GetTlsEnabled()
+		var err error
+
+		if tlsEnabled {
+			crtPath := config.GetTlsCrtPath()
+			keyPath := config.GetTlsKeyPath()
+			err = e.StartTLS("0.0.0.0:8080", crtPath, keyPath)
+		} else {
+			err = e.Start("0.0.0.0:8080")
+		}
+
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			e.Logger.Fatal("Shutting down the server!")
 		}
 	}()
