@@ -28,29 +28,19 @@ type Purchase struct {
 
 const (
 	FETCH_PURCHASE_ITEM = `SELECT pi.id purchase_item_id,
-       poi.id prod_instance_id,
+       pi.purchased purchase_item_purchased,
+       pi.quantity purchase_item_quantity,
+       pi.created_at purchase_item_created_at,
+       pi.price purchase_item_price,
        p.id prod_id,
-       poi.price prod_price,
-       poi.precision prod_precision,
-       poi.created_at prod_inst_created_at,
        p.name prod_name,
        p.ean prod_ean,
        p.unit prod_unit,
        p.size prod_size,
        p.created_at prod_created_at,
-       p.updated_at prod_updated_at,
-       pi.purchased purchase_item_purchased,
-       pi.quantity purchase_item_quantity,
-       m.id market_id,
-       m.name market_name,
-       m.created_at market_created_at,
-       m.updated_at market_update_at,
-       m.enabled market_enabled
-
-FROM purchase_item pi, product_instance poi, product p, market m
-    where pi.product_instance_id = poi.id
-	AND p.id = poi.product_id
-	AND poi.market_id = m.id
+       p.updated_at prod_updated_at
+FROM purchase_item pi, product p
+    where p.id = pi.product_id
 `
 	FETCH_PURCHASE = `SELECT
 		p.id purchase_id,
@@ -118,8 +108,8 @@ func (p Purchase) DeletePurchase(ctx context.Context, id int64) error {
 
 func (p Purchase) UpdatePurchaseItem(ctx context.Context, purchaseId int64, itemId int64, item model.PurchaseItem) error {
 	statement := p.DbConnection.NewSession(nil).DeleteBySql(`
-	UPDATE PURCHASE_ITEM SET product_instance_id = ?, purchased = ?, quantity = ? where purchase_id = ? AND id = ?
-	`, item.ProductInstance.Id, item.Purchased, item.Quantity, purchaseId, itemId)
+	UPDATE PURCHASE_ITEM SET purchased = ?, quantity = ?, price = ?, product_id = ? where purchase_id = ? AND id = ?
+	`, item.Purchased, item.Quantity, item.Price, item.Product.Id, purchaseId, itemId)
 
 	_, err := statement.ExecContext(ctx)
 	if err != nil {
@@ -131,8 +121,8 @@ func (p Purchase) UpdatePurchaseItem(ctx context.Context, purchaseId int64, item
 
 func (p Purchase) AddPurchaseItem(ctx context.Context, purchaseId int64, item model.PurchaseItem) (model.Purchase, error) {
 	statement := p.DbConnection.NewSession(nil).SelectBySql(`
-	INSERT INTO PURCHASE_ITEM(ID, PRODUCT_INSTANCE_ID, PURCHASE_ID, QUANTITY) 
-	values (default, ?, ?, ?)`, *item.ProductInstance.Id, purchaseId, item.Quantity)
+	INSERT INTO PURCHASE_ITEM(ID, PURCHASE_ID, PRODUCT_ID, QUANTITY, PRICE) 
+	values (default, ?, ?, ?, ?)`, purchaseId, item.Product.Id, item.Quantity, *item.Price)
 
 	_, err := statement.LoadContext(ctx, &item)
 	if err != nil {
@@ -173,7 +163,6 @@ func (p Purchase) getAllPurchaseItemByPurchaseId(ctx context.Context, purchaseId
 	for i, v := range items {
 		results[i] = v.ToPurchaseItem()
 		results[i].Purchase = &purchase
-		results[i].ProductInstance.Market = &purchase.Market
 	}
 
 	return results, nil

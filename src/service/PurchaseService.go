@@ -49,7 +49,7 @@ func (p Purchase) CreatePurchase(ctx context.Context, purchase model.Purchase) (
 }
 
 func (p Purchase) AddItem(ctx context.Context, purchaseId int64, purchaseItem model.PurchaseItem) (model.Purchase, error) {
-	purchase, err := p.PurchaseRepository.GetPurchaseById(ctx, purchaseId)
+	_, err := p.PurchaseRepository.GetPurchaseById(ctx, purchaseId)
 	if err != nil {
 		return model.Purchase{}, err
 	}
@@ -58,19 +58,11 @@ func (p Purchase) AddItem(ctx context.Context, purchaseId int64, purchaseItem mo
 		purchaseItem.Quantity = 1
 	}
 
-	purchaseItem.ProductInstance.Market = &purchase.Market
-
 	product, err := p.processProduct(ctx, purchaseItem)
 	if err != nil {
 		return model.Purchase{}, err
 	}
-	purchaseItem.ProductInstance.Product = product
-
-	productInstance, err := p.processProductInstance(ctx, purchaseItem)
-	if err != nil {
-		return model.Purchase{}, err
-	}
-	purchaseItem.ProductInstance.Id = productInstance.Id
+	purchaseItem.Product = product
 
 	_, err = p.PurchaseRepository.AddPurchaseItem(ctx, purchaseId, purchaseItem)
 	if err != nil {
@@ -82,7 +74,7 @@ func (p Purchase) AddItem(ctx context.Context, purchaseId int64, purchaseItem mo
 
 func (p Purchase) processProduct(ctx context.Context, purchaseItem model.PurchaseItem) (model.Product, error) {
 	var productFound *model.Product
-	var product = purchaseItem.ProductInstance.Product
+	var product = purchaseItem.Product
 
 	if product.Id != nil {
 		productQuery, err := p.ProductService.GetById(ctx, *product.Id)
@@ -119,44 +111,7 @@ func (p Purchase) processProduct(ctx context.Context, purchaseItem model.Purchas
 	return *productFound, nil
 }
 
-func (p Purchase) processProductInstance(ctx context.Context, purchaseItem model.PurchaseItem) (model.ProductInstance, error) {
-	var (
-		productInstanceFound *model.ProductInstance
-		productInstance      = purchaseItem.ProductInstance
-	)
-	if productInstance.Product.Id != nil {
-		productInstanceQuery, err := p.ProductService.GetLastProductInstanceByProductId(ctx, *productInstance.Product.Id)
-		if err == nil {
-			productInstanceFound = &productInstanceQuery
-		}
-	} else if productInstance.Id != nil {
-		productInstanceQuery, err := p.ProductService.GetProductInstanceById(ctx, *productInstance.Id)
-		if err == nil {
-			productInstanceFound = &productInstanceQuery
-		}
-	} else {
-		return model.ProductInstance{}, util.MakeError(util.UNKNOWN_ERROR, "Without Product Id cant create product instance")
-	}
-	if productInstanceFound == nil || (productInstanceFound.Price != nil && p.calculateRealPrice(*productInstanceFound) != p.calculateRealPrice(productInstance)) {
-		createdInstance, err := p.ProductService.CreateInstance(ctx, productInstance)
-		if err != nil {
-			return model.ProductInstance{}, err
-		}
-		productInstanceFound = &createdInstance
-	} else if productInstanceFound != nil {
-		productInstanceFound.Price = productInstance.Price
-
-		updatedInstance, err := p.ProductService.UpdateInstance(ctx, *productInstanceFound)
-		if err != nil {
-			return model.ProductInstance{}, err
-		}
-		productInstanceFound = &updatedInstance
-	}
-
-	return *productInstanceFound, nil
-}
-
-func (p Purchase) calculateRealPrice(productInstance model.ProductInstance) *float64 {
+func (p Purchase) calculateRealPrice(productInstance model.PurchaseItem) *float64 {
 	if productInstance.Price != nil {
 		price := float64(*productInstance.Price) / math.Pow10(2)
 		return &price
@@ -182,13 +137,7 @@ func (p Purchase) UpdateItem(ctx context.Context, purchaseId int64, purchaseItem
 	if err != nil {
 		return model.Purchase{}, err
 	}
-	item.ProductInstance.Product = product
-
-	productInstance, err := p.processProductInstance(ctx, item)
-	if err != nil {
-		return model.Purchase{}, err
-	}
-	item.ProductInstance.Id = productInstance.Id
+	item.Product = product
 
 	err = p.PurchaseRepository.UpdatePurchaseItem(ctx, purchaseId, purchaseItemId, item)
 	if err != nil {
@@ -206,19 +155,17 @@ func (p Purchase) GetPurchase(ctx context.Context, id int64) (model.Purchase, er
 	purchase.TotalSpent = 0
 	purchase.TotalExpected = 0
 
-	var instance model.ProductInstance
 	for _, item := range purchase.Items {
-		instance = item.ProductInstance
 
-		if instance.Price == nil {
+		if item.Price == nil {
 			continue
 		}
 
 		if item.Purchased {
-			purchase.TotalSpent += *instance.Price * int64(item.Quantity)
+			purchase.TotalSpent += *item.Price * int64(item.Quantity)
 		}
 
-		purchase.TotalExpected += *instance.Price * int64(item.Quantity)
+		purchase.TotalExpected += *item.Price * int64(item.Quantity)
 	}
 
 	return purchase, nil

@@ -12,22 +12,15 @@ type ProductService interface {
 	GetByName(ctx context.Context, name string) ([]model.Product, error)
 	GetByEan(ctx context.Context, ean string) (model.Product, error)
 	GetById(ctx context.Context, id int64) (model.Product, error)
-	GetProductsByPurchase(ctx context.Context, purchaseId int64) ([]model.ProductInstance, error)
-	GetLastProductInstanceByProductId(ctx context.Context, id int64) (model.ProductInstance, error)
-	GetProductInstanceById(ctx context.Context, productInstanceId int64) (model.ProductInstance, error)
-	CreateInstance(ctx context.Context, instance model.ProductInstance) (model.ProductInstance, error)
-	UpdateInstance(ctx context.Context, instance model.ProductInstance) (model.ProductInstance, error)
 }
 
 type Product struct {
-	ProductRepository         repository.ProductRepository
-	ProductInstanceRepository repository.ProductInstanceRepository
+	ProductRepository repository.ProductRepository
 }
 
-func CreateProductService(productRepository repository.ProductRepository, productInstanceRepository repository.ProductInstanceRepository) ProductService {
+func CreateProductService(productRepository repository.ProductRepository) ProductService {
 	return &Product{
-		ProductRepository:         productRepository,
-		ProductInstanceRepository: productInstanceRepository,
+		ProductRepository: productRepository,
 	}
 }
 
@@ -49,24 +42,4 @@ func (p Product) GetByEan(ctx context.Context, ean string) (model.Product, error
 
 func (p Product) GetById(ctx context.Context, id int64) (model.Product, error) {
 	return p.ProductRepository.GetProductById(ctx, id)
-}
-
-func (p Product) GetProductsByPurchase(ctx context.Context, purchaseId int64) ([]model.ProductInstance, error) {
-	return p.ProductInstanceRepository.GetProductInstanceByPurchase(ctx, purchaseId)
-}
-
-func (p Product) GetLastProductInstanceByProductId(ctx context.Context, productId int64) (model.ProductInstance, error) {
-	return p.ProductInstanceRepository.GetLastProductInstanceByProductId(ctx, productId)
-}
-
-func (p Product) GetProductInstanceById(ctx context.Context, productInstanceId int64) (model.ProductInstance, error) {
-	return p.ProductInstanceRepository.GetProductInstanceById(ctx, productInstanceId)
-}
-
-func (p Product) UpdateInstance(ctx context.Context, instance model.ProductInstance) (model.ProductInstance, error) {
-	return p.ProductInstanceRepository.Update(ctx, instance)
-}
-
-func (p Product) CreateInstance(ctx context.Context, instance model.ProductInstance) (model.ProductInstance, error) {
-	return p.ProductInstanceRepository.CreateProduct(ctx, instance)
 }
