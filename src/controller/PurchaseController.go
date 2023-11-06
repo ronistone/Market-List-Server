@@ -3,6 +3,7 @@ package controller
 import (
 	"errors"
 	"github.com/labstack/echo/v4"
+	controllerModel "github.com/ronistone/market-list/src/controller/model"
 	"github.com/ronistone/market-list/src/model"
 	"github.com/ronistone/market-list/src/service"
 	"github.com/ronistone/market-list/src/util"
@@ -47,7 +48,10 @@ func (p PurchaseController) CreatePurchase(c echo.Context) error {
 		return handleError(c, http.StatusUnprocessableEntity, err)
 	}
 
-	return c.JSON(http.StatusCreated, purchase)
+	purchaseFiltered := controllerModel.Purchase{}
+	purchaseFiltered.FromModel(purchase)
+
+	return c.JSON(http.StatusCreated, purchaseFiltered)
 }
 
 func (p PurchaseController) AddItem(c echo.Context) error {
@@ -72,7 +76,10 @@ func (p PurchaseController) AddItem(c echo.Context) error {
 		return handleError(c, http.StatusInternalServerError, err)
 	}
 
-	return c.JSON(http.StatusOK, purchase)
+	purchaseFiltered := controllerModel.Purchase{}
+	purchaseFiltered.FromModel(purchase)
+
+	return c.JSON(http.StatusOK, purchaseFiltered)
 }
 
 func (p PurchaseController) RemoveItem(c echo.Context) error {
@@ -98,7 +105,10 @@ func (p PurchaseController) RemoveItem(c echo.Context) error {
 		return handleError(c, http.StatusInternalServerError, err)
 	}
 
-	return c.JSON(http.StatusOK, purchase)
+	purchaseFiltered := controllerModel.Purchase{}
+	purchaseFiltered.FromModel(purchase)
+
+	return c.JSON(http.StatusOK, purchaseFiltered)
 }
 
 func (p PurchaseController) UpdateItem(c echo.Context) error {
@@ -130,7 +140,10 @@ func (p PurchaseController) UpdateItem(c echo.Context) error {
 		return handleError(c, http.StatusInternalServerError, err)
 	}
 
-	return c.JSON(http.StatusOK, purchase)
+	purchaseFiltered := controllerModel.Purchase{}
+	purchaseFiltered.FromModel(purchase)
+
+	return c.JSON(http.StatusOK, purchaseFiltered)
 }
 
 func (p PurchaseController) GetPurchase(c echo.Context) error {
@@ -150,7 +163,10 @@ func (p PurchaseController) GetPurchase(c echo.Context) error {
 		return handleError(c, http.StatusInternalServerError, err)
 	}
 
-	return c.JSON(http.StatusOK, products)
+	purchase := controllerModel.Purchase{}
+	purchase.FromModel(products)
+
+	return c.JSON(http.StatusOK, purchase)
 }
 
 func (p PurchaseController) GetAllPurchase(c echo.Context) error {
@@ -161,7 +177,12 @@ func (p PurchaseController) GetAllPurchase(c echo.Context) error {
 		return handleError(c, http.StatusInternalServerError, err)
 	}
 
-	return c.JSON(http.StatusOK, purchases)
+	purchasesFiltered := make([]controllerModel.Purchase, len(purchases), len(purchases))
+	for i, _ := range purchases {
+		purchasesFiltered[i].FromModel(purchases[i])
+	}
+
+	return c.JSON(http.StatusOK, purchasesFiltered)
 }
 
 func (p PurchaseController) DeletePurchase(c echo.Context) error {

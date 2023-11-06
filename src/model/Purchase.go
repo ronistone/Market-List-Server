@@ -15,9 +15,11 @@ type Purchase struct {
 }
 
 type PurchaseItem struct {
-	Id              *int64          `json:"id"`
-	Purchase        *Purchase       `json:"purchase"`
-	ProductInstance ProductInstance `json:"productInstance"`
-	Purchased       bool            `json:"purchased"`
-	Quantity        int             `json:"quantity"`
+	Id        *int64     `json:"id"`
+	Purchase  *Purchase  `json:"purchase"`
+	Product   Product    `json:"product"`
+	Purchased bool       `json:"purchased"`
+	Quantity  int        `json:"quantity"`
+	Price     *int64     `json:"price"`
+	CreatedAt *time.Time `json:"createdAt"`
 }

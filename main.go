@@ -43,7 +43,7 @@ func GracefullyStart(e *echo.Echo) {
 		}
 
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			e.Logger.Fatal("Shutting down the server!")
+			e.Logger.Fatal("Shutting down the server! %v", err)
 		}
 	}()
 
@@ -74,6 +74,13 @@ func main() {
 		}
 	})
 
+	//e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+	//	return func(c echo.Context) error {
+	//		time.Sleep(2000 * time.Millisecond)
+	//		return next(c)
+	//	}
+	//})
+
 	db, err := dbr.Open("postgres", config.GetDatabaseDSN(), nil)
 	if err != nil {
 		panic(err)
@@ -85,8 +92,7 @@ func main() {
 	//userService := service.CreateUserService(userRepository)
 
 	productRepository := repository.CreateProductRepository(db)
-	productInstanceRepository := repository.CreateProductInstanceRepository(db)
-	productService := service.CreateProductService(productRepository, productInstanceRepository)
+	productService := service.CreateProductService(productRepository)
 	productController := controller.CreateProductController(productService)
 
 	marketRepository := repository.CreateMarketRepository(db)
