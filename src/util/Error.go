@@ -32,5 +32,5 @@ type MarketListError struct {
 }
 
 func (m *MarketListError) Error() string {
-	return fmt.Sprintf("%s: %s", m.Error, m.Message)
+	return fmt.Sprintf("%s: %s", m.ErrorType, m.Message)
 }
