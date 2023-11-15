@@ -122,7 +122,7 @@ func (p Purchase) UpdatePurchaseItem(ctx context.Context, purchaseId int64, item
 func (p Purchase) AddPurchaseItem(ctx context.Context, purchaseId int64, item model.PurchaseItem) (model.Purchase, error) {
 	statement := p.DbConnection.NewSession(nil).SelectBySql(`
 	INSERT INTO PURCHASE_ITEM(ID, PURCHASE_ID, PRODUCT_ID, QUANTITY, PRICE) 
-	values (default, ?, ?, ?, ?)`, purchaseId, item.Product.Id, item.Quantity, *item.Price)
+	values (default, ?, ?, ?, ?)`, purchaseId, item.Product.Id, item.Quantity, item.Price)
 
 	_, err := statement.LoadContext(ctx, &item)
 	if err != nil {
