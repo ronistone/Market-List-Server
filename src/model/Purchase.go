@@ -4,14 +4,16 @@ import "time"
 
 type Purchase struct {
 	Id            *int64         `json:"id"`
-	User          User           `json:"user"`
-	Market        Market         `json:"market"`
+	Name          string         `json:"name"`
+	Users         []User         `json:"users"`
+	Market        *Market        `json:"market"`
 	CreatedAt     *time.Time     `json:"createdAt"`
 	Items         []PurchaseItem `json:"items"`
-	UserId        *int64         `json:"userId"`
 	MarketId      *int64         `json:"marketId"`
 	TotalSpent    int64          `json:"totalSpent"`
 	TotalExpected int64          `json:"totalExpected"`
+	IsFavorite    bool           `json:"isFavorite"`
+	Tags          []Tag          `json:"tags"`
 }
 
 type PurchaseItem struct {

@@ -7,38 +7,34 @@ import (
 
 type PurchaseEntity struct {
 	Id              *int64     `db:"purchase_id"`
+	Name            string     `db:"purchase_name"`
+	IsFavorite      bool       `db:"purchase_is_favorite"`
 	CreatedAt       *time.Time `db:"purchase_created_at"`
-	UserId          *int64     `db:"market_user_id"`
-	UserName        string     `db:"market_user_name"`
-	Email           *string    `db:"EMAIL"`
-	UserCreatedAt   *time.Time `db:"market_user_created_at"`
-	UserUpdatedAt   *time.Time `db:"market_user_updated_at"`
 	MarketId        *int64     `db:"_market_id"`
-	MarketName      string     `db:"market_name"`
+	MarketName      *string    `db:"market_name"`
 	MarketCreatedAt *time.Time `db:"market_created_at"`
 	MarketUpdatedAt *time.Time `db:"market_updated_at"`
 }
 
 func (p PurchaseEntity) ToPurchase() model.Purchase {
+	var marketResult *model.Market
+	if p.MarketId != nil && p.MarketName != nil {
+		var market model.Market
+		market.Id = p.MarketId
+		market.Name = *p.MarketName
+		market.CreatedAt = p.MarketCreatedAt
+		market.UpdatedAt = p.MarketUpdatedAt
+		marketResult = &market
+	}
+
 	return model.Purchase{
-		Id: p.Id,
-		User: model.User{
-			Id:        p.UserId,
-			Email:     "",
-			Name:      p.UserName,
-			CreatedAt: p.UserCreatedAt,
-			UpdatedAt: p.UserUpdatedAt,
-		},
-		Market: model.Market{
-			Id:        p.MarketId,
-			Name:      p.MarketName,
-			CreatedAt: p.MarketCreatedAt,
-			UpdatedAt: p.MarketUpdatedAt,
-		},
-		CreatedAt: p.CreatedAt,
-		Items:     nil,
-		UserId:    p.UserId,
-		MarketId:  p.MarketId,
+		Id:         p.Id,
+		Name:       p.Name,
+		Market:     marketResult,
+		CreatedAt:  p.CreatedAt,
+		Items:      nil,
+		IsFavorite: p.IsFavorite,
+		MarketId:   p.MarketId,
 	}
 }
 

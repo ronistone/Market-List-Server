@@ -12,6 +12,7 @@ const (
 	ALREADY_EXISTS           = "ALREADY_EXISTS"
 	UNKNOWN_ERROR            = "UNKNOWN_ERROR"
 	INVALID_INPUT            = "INVALID_INPUT"
+	FORBIDDEN                = "FORBIDDEN"
 )
 
 func MakeError(errorType ErrorType, message string) *MarketListError {

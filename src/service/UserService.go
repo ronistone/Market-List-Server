@@ -9,6 +9,7 @@ import (
 type UserService interface {
 	CreateUser(ctx context.Context, user model.User) (model.User, error)
 	GetUser(ctx context.Context, id int64) (model.User, error)
+	GetUsersByPurchaseId(ctx context.Context, purchaseId int64) ([]model.User, error)
 }
 type User struct {
 	UserRepository repository.UserRepository
@@ -30,4 +31,8 @@ func (u User) GetUser(ctx context.Context, id int64) (model.User, error) {
 		return model.User{}, err
 	}
 	return user, nil
+}
+
+func (u User) GetUsersByPurchaseId(ctx context.Context, purchaseId int64) ([]model.User, error) {
+	return u.UserRepository.GetUsersByPurchaseId(ctx, purchaseId)
 }

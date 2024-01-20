@@ -12,6 +12,7 @@ import (
 type UserRepository interface {
 	CreateUser(ctx context.Context, purchase model.User) (model.User, error)
 	GetUserById(ctx context.Context, id int64) (model.User, error)
+	GetUsersByPurchaseId(ctx context.Context, purchaseId int64) ([]model.User, error)
 }
 
 type User struct {
@@ -55,4 +56,21 @@ func (p User) GetUserById(ctx context.Context, id int64) (model.User, error) {
 	}
 
 	return user, nil
+}
+
+func (p User) GetUsersByPurchaseId(ctx context.Context, purchaseId int64) ([]model.User, error) {
+	statement := p.DbConnection.NewSession(nil).SelectBySql(`
+	SELECT * FROM MARKET_USER where ID IN (
+		SELECT USER_ID FROM PURCHASE_USER where PURCHASE_ID = ?
+	)
+	`, purchaseId)
+
+	var users []model.User
+	_, err := statement.LoadContext(ctx, &users)
+
+	if err != nil {
+		return nil, util.MakeErrorUnknown(err)
+	}
+
+	return users, nil
 }

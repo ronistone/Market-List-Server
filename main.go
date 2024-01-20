@@ -10,9 +10,9 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/ronistone/market-list/src/config"
 	"github.com/ronistone/market-list/src/controller"
+	myMiddleware "github.com/ronistone/market-list/src/middleware"
 	"github.com/ronistone/market-list/src/repository"
 	"github.com/ronistone/market-list/src/service"
-	"github.com/ronistone/market-list/src/util"
 	"net/http"
 	"os"
 	"os/signal"
@@ -67,19 +67,8 @@ func main() {
 	}
 	e := ConfigureServer()
 
-	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			c.Set("logger", &util.ContextLogger{Logger: c.Logger()})
-			return next(c)
-		}
-	})
-
-	//e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
-	//	return func(c echo.Context) error {
-	//		time.Sleep(2000 * time.Millisecond)
-	//		return next(c)
-	//	}
-	//})
+	e.Use(myMiddleware.InjectLogger)
+	e.Use(myMiddleware.InjectUserId)
 
 	db, err := dbr.Open("postgres", config.GetDatabaseDSN(), nil)
 	if err != nil {
@@ -88,8 +77,8 @@ func main() {
 	defer db.Close()
 	db.SetMaxOpenConns(20)
 
-	//userRepository := repository.CreateUserRepository(db)
-	//userService := service.CreateUserService(userRepository)
+	userRepository := repository.CreateUserRepository(db)
+	userService := service.CreateUserService(userRepository)
 
 	productRepository := repository.CreateProductRepository(db)
 	productService := service.CreateProductService(productRepository)
@@ -100,7 +89,7 @@ func main() {
 	marketController := controller.CreateMarketController(marketService)
 
 	purchaseRepository := repository.CreatePurchaseRepository(db)
-	purchaseService := service.CreatePurchaseService(purchaseRepository, productService)
+	purchaseService := service.CreatePurchaseService(purchaseRepository, productService, userService)
 	purchaseController := controller.CreatePurchaseController(purchaseService)
 
 	err = productController.Register(e)
