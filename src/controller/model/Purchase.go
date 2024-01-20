@@ -6,16 +6,16 @@ import (
 )
 
 type Purchase struct {
-	Id            *int64         `json:"id"`
+	Id            *int64         `json:"id,omitempty"`
 	Name          string         `json:"name"`
-	User          []User         `json:"user"`
-	Market        *Market        `json:"market"`
-	CreatedAt     *time.Time     `json:"createdAt"`
-	Items         []PurchaseItem `json:"items"`
+	User          []User         `json:"user,omitempty"`
+	Market        *Market        `json:"market,omitempty"`
+	CreatedAt     *time.Time     `json:"createdAt,omitempty"`
+	Items         []PurchaseItem `json:"items,omitempty"`
 	TotalSpent    int64          `json:"totalSpent"`
 	TotalExpected int64          `json:"totalExpected"`
 	IsFavorite    bool           `json:"isFavorite"`
-	Tags          []Tag          `json:"tags"`
+	Tags          []Tag          `json:"tags,omitempty"`
 }
 
 type PurchaseItem struct {

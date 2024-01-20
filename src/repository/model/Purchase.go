@@ -17,18 +17,20 @@ type PurchaseEntity struct {
 }
 
 func (p PurchaseEntity) ToPurchase() model.Purchase {
-	var market model.Market
+	var marketResult *model.Market
 	if p.MarketId != nil && p.MarketName != nil {
+		var market model.Market
 		market.Id = p.MarketId
 		market.Name = *p.MarketName
 		market.CreatedAt = p.MarketCreatedAt
 		market.UpdatedAt = p.MarketUpdatedAt
+		marketResult = &market
 	}
 
 	return model.Purchase{
 		Id:         p.Id,
 		Name:       p.Name,
-		Market:     &market,
+		Market:     marketResult,
 		CreatedAt:  p.CreatedAt,
 		Items:      nil,
 		IsFavorite: p.IsFavorite,

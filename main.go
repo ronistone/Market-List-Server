@@ -77,8 +77,8 @@ func main() {
 	defer db.Close()
 	db.SetMaxOpenConns(20)
 
-	//userRepository := repository.CreateUserRepository(db)
-	//userService := service.CreateUserService(userRepository)
+	userRepository := repository.CreateUserRepository(db)
+	userService := service.CreateUserService(userRepository)
 
 	productRepository := repository.CreateProductRepository(db)
 	productService := service.CreateProductService(productRepository)
@@ -89,7 +89,7 @@ func main() {
 	marketController := controller.CreateMarketController(marketService)
 
 	purchaseRepository := repository.CreatePurchaseRepository(db)
-	purchaseService := service.CreatePurchaseService(purchaseRepository, productService)
+	purchaseService := service.CreatePurchaseService(purchaseRepository, productService, userService)
 	purchaseController := controller.CreatePurchaseController(purchaseService)
 
 	err = productController.Register(e)

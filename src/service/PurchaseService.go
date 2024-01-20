@@ -21,15 +21,18 @@ type PurchaseService interface {
 type Purchase struct {
 	PurchaseRepository repository.PurchaseRepository
 	ProductService     ProductService
+	UserService        UserService
 }
 
 func CreatePurchaseService(
 	purchaseRepository repository.PurchaseRepository,
 	productService ProductService,
+	userService UserService,
 ) PurchaseService {
 	return &Purchase{
 		PurchaseRepository: purchaseRepository,
 		ProductService:     productService,
+		UserService:        userService,
 	}
 }
 
@@ -194,6 +197,13 @@ func (p Purchase) GetPurchase(ctx context.Context, id int64) (model.Purchase, er
 
 		purchase.TotalExpected += *item.Price * int64(item.Quantity)
 	}
+
+	users, err := p.UserService.GetUsersByPurchaseId(ctx, *purchase.Id)
+	if err != nil {
+		return model.Purchase{}, err
+	}
+
+	purchase.Users = users
 
 	return purchase, nil
 }
