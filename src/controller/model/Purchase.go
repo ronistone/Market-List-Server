@@ -7,12 +7,15 @@ import (
 
 type Purchase struct {
 	Id            *int64         `json:"id"`
-	UserId        *int64         `json:"userId"`
-	Market        Market         `json:"market"`
+	Name          string         `json:"name"`
+	User          []User         `json:"user"`
+	Market        *Market        `json:"market"`
 	CreatedAt     *time.Time     `json:"createdAt"`
 	Items         []PurchaseItem `json:"items"`
 	TotalSpent    int64          `json:"totalSpent"`
 	TotalExpected int64          `json:"totalExpected"`
+	IsFavorite    bool           `json:"isFavorite"`
+	Tags          []Tag          `json:"tags"`
 }
 
 type PurchaseItem struct {
@@ -39,12 +42,30 @@ func (pi *PurchaseItem) FromModel(itemModel model.PurchaseItem) {
 func (p *Purchase) FromModel(purchaseModel model.Purchase) {
 
 	p.Id = purchaseModel.Id
-	p.UserId = purchaseModel.User.Id
 
-	market := Market{}
-	market.FromModel(purchaseModel.Market)
+	var users []User
 
-	p.Market = market
+	for _, user := range purchaseModel.Users {
+		users = append(users, User{
+			Id:    *user.Id,
+			Name:  user.Name,
+			Email: user.Email,
+		})
+	}
+
+	var tags []Tag
+	for _, tag := range purchaseModel.Tags {
+		tags = append(tags, Tag{Id: tag.Id, Name: tag.Name})
+	}
+
+	p.User = users
+
+	if purchaseModel.Market != nil {
+		market := Market{}
+		market.FromModel(*purchaseModel.Market)
+		p.Market = &market
+	}
+
 	p.CreatedAt = purchaseModel.CreatedAt
 
 	if purchaseModel.Items != nil {
@@ -56,5 +77,7 @@ func (p *Purchase) FromModel(purchaseModel model.Purchase) {
 	}
 	p.TotalSpent = purchaseModel.TotalSpent
 	p.TotalExpected = purchaseModel.TotalExpected
+	p.Name = purchaseModel.Name
+	p.IsFavorite = purchaseModel.IsFavorite
 
 }

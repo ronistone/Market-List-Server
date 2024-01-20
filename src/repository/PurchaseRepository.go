@@ -12,13 +12,13 @@ import (
 
 type PurchaseRepository interface {
 	CreatePurchase(ctx context.Context, purchase model.Purchase) (model.Purchase, error)
-	DeletePurchase(ctx context.Context, id int64) error
-	AddPurchaseItem(ctx context.Context, purchaseId int64, item model.PurchaseItem) (model.Purchase, error)
-	RemovePurchaseItem(ctx context.Context, purchaseId int64, itemId int64) (model.Purchase, error)
-	UpdatePurchaseItem(ctx context.Context, purchaseId int64, itemId int64, item model.PurchaseItem) error
-	GetPurchaseById(ctx context.Context, id int64) (model.Purchase, error)
-	GetPurchaseByIdFetchItems(ctx context.Context, id int64) (model.Purchase, error)
-	GetPurchaseItemById(ctx context.Context, purchaseId int64, id int64) (model.PurchaseItem, error)
+	DeletePurchase(ctx context.Context, userId, id int64) error
+	AddPurchaseItem(ctx context.Context, userId, purchaseId int64, item model.PurchaseItem) (model.Purchase, error)
+	RemovePurchaseItem(ctx context.Context, userId, purchaseId int64, itemId int64) (model.Purchase, error)
+	UpdatePurchaseItem(ctx context.Context, userId, purchaseId, itemId int64, item model.PurchaseItem) error
+	GetPurchaseById(ctx context.Context, userId, id int64) (model.Purchase, error)
+	GetPurchaseByIdFetchItems(ctx context.Context, userId, id int64) (model.Purchase, error)
+	GetPurchaseItemById(ctx context.Context, userId, purchaseId int64, id int64) (model.PurchaseItem, error)
 	ListPurchase(ctx context.Context, userId int64) ([]model.Purchase, error)
 }
 
@@ -39,24 +39,24 @@ const (
        p.size prod_size,
        p.created_at prod_created_at,
        p.updated_at prod_updated_at
-FROM purchase_item pi, product p
-    where p.id = pi.product_id
+FROM purchase_item pi 
+    INNER JOIN product p ON p.id = pi.product_id
+	INNER JOIN purchase_user pu ON pu.purchase_id = pi.purchase_id AND pu.user_id = ?
+    where 1=1
 `
 	FETCH_PURCHASE = `SELECT
 		p.id purchase_id,
 		p.created_at purchase_created_at,
-		mu.id market_user_id,
-		mu.name market_user_name,
-		-- 		    mu.email market_user_email,
-		mu.created_at market_user_created_at,
-		mu.updated_at market_user_updated_at,
+		p.name purchase_name,
+		p.is_favorite purchase_is_favorite,
 		m.id _market_id,
 		m.name market_name,
 		m.created_at market_created_at,
 		m.updated_at market_updated_at
-	FROM purchase p, market_user mu, market m
-	WHERE p.user_id = mu.id
-	AND p.market_id = m.id 
+	FROM purchase p
+	    INNER JOIN purchase_user pu on pu.user_id = ? AND pu.purchase_id = p.id
+	    LEFT JOIN market m ON p.market_id = m.id
+	WHERE 1=1
 `
 )
 
@@ -64,6 +64,19 @@ func CreatePurchaseRepository(connection *dbr.Connection) PurchaseRepository {
 	return &Purchase{
 		DbConnection: connection,
 	}
+}
+
+func relateUsersToPurchase(ctx context.Context, tx *dbr.Tx, purchaseId int64, users []model.User) error {
+	for _, user := range users {
+		statement := tx.InsertBySql(`
+			INSERT INTO PURCHASE_USER (purchase_id, user_id) VALUES (?, ?)
+		`, purchaseId, user.Id)
+		_, err := statement.ExecContext(ctx)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (p Purchase) CreatePurchase(ctx context.Context, purchase model.Purchase) (model.Purchase, error) {
@@ -74,14 +87,21 @@ func (p Purchase) CreatePurchase(ctx context.Context, purchase model.Purchase) (
 	}
 
 	statement := tx.InsertBySql(`
-	INSERT INTO PURCHASE(CREATED_AT, USER_ID, MARKET_ID) 
-		values (default, ?, ?)
+	INSERT INTO PURCHASE(CREATED_AT, NAME, MARKET_ID, IS_FAVORITE) 
+		values (default, ?, ?, ?)
 	RETURNING *
-	`, purchase.User.Id, purchase.Market.Id)
+	`, purchase.Name, purchase.MarketId, purchase.IsFavorite)
 
 	err = statement.LoadContext(ctx, &purchase)
 
 	if err != nil {
+		return model.Purchase{}, util.MakeErrorUnknown(err)
+	}
+
+	err = relateUsersToPurchase(ctx, tx, *purchase.Id, purchase.Users)
+
+	if err != nil {
+		_ = tx.Rollback()
 		return model.Purchase{}, util.MakeErrorUnknown(err)
 	}
 
@@ -93,10 +113,12 @@ func (p Purchase) CreatePurchase(ctx context.Context, purchase model.Purchase) (
 	return purchase, nil
 }
 
-func (p Purchase) DeletePurchase(ctx context.Context, id int64) error {
+func (p Purchase) DeletePurchase(ctx context.Context, userId, id int64) error {
 	statement := p.DbConnection.NewSession(nil).DeleteBySql(`
-	DELETE FROM purchase where id = ?
-	`, id)
+	DELETE FROM purchase where id = (
+		SELECT pu.purchase_id FROM purchase_user pu WHERE pu.purchase_id = ? AND pu.user_id = ?
+	)
+	`, id, userId)
 
 	_, err := statement.ExecContext(ctx)
 	if err != nil {
@@ -106,10 +128,13 @@ func (p Purchase) DeletePurchase(ctx context.Context, id int64) error {
 	return nil
 }
 
-func (p Purchase) UpdatePurchaseItem(ctx context.Context, purchaseId int64, itemId int64, item model.PurchaseItem) error {
+func (p Purchase) UpdatePurchaseItem(ctx context.Context, userId, purchaseId int64, itemId int64, item model.PurchaseItem) error {
 	statement := p.DbConnection.NewSession(nil).DeleteBySql(`
-	UPDATE PURCHASE_ITEM SET purchased = ?, quantity = ?, price = ?, product_id = ? where purchase_id = ? AND id = ?
-	`, item.Purchased, item.Quantity, item.Price, item.Product.Id, purchaseId, itemId)
+	UPDATE PURCHASE_ITEM pi
+		SET purchased = ?, quantity = ?, price = ?, product_id = ?
+		FROM purchase_user pu
+		WHERE pi.id = ? AND pi.purchase_id = pu.purchase_id AND pu.user_id = ? AND pi.purchase_id = ?
+	`, item.Purchased, item.Quantity, item.Price, item.Product.Id, itemId, userId, purchaseId)
 
 	_, err := statement.ExecContext(ctx)
 	if err != nil {
@@ -119,7 +144,7 @@ func (p Purchase) UpdatePurchaseItem(ctx context.Context, purchaseId int64, item
 	return nil
 }
 
-func (p Purchase) AddPurchaseItem(ctx context.Context, purchaseId int64, item model.PurchaseItem) (model.Purchase, error) {
+func (p Purchase) AddPurchaseItem(ctx context.Context, userId, purchaseId int64, item model.PurchaseItem) (model.Purchase, error) {
 	statement := p.DbConnection.NewSession(nil).SelectBySql(`
 	INSERT INTO PURCHASE_ITEM(ID, PURCHASE_ID, PRODUCT_ID, QUANTITY, PRICE) 
 	values (default, ?, ?, ?, ?)`, purchaseId, item.Product.Id, item.Quantity, item.Price)
@@ -129,13 +154,15 @@ func (p Purchase) AddPurchaseItem(ctx context.Context, purchaseId int64, item mo
 		return model.Purchase{}, util.MakeErrorUnknown(err)
 	}
 
-	return p.GetPurchaseById(ctx, purchaseId)
+	return p.GetPurchaseById(ctx, userId, purchaseId)
 }
 
-func (p Purchase) RemovePurchaseItem(ctx context.Context, purchaseId int64, itemId int64) (model.Purchase, error) {
+func (p Purchase) RemovePurchaseItem(ctx context.Context, userId, purchaseId int64, itemId int64) (model.Purchase, error) {
 	statement := p.DbConnection.NewSession(nil).DeleteBySql(`
-	DELETE FROM purchase_item where id = ? AND purchase_id = ?
-	`, itemId, purchaseId)
+	DELETE FROM purchase_item pi
+	USING purchase_user pu
+	WHERE pi.id = ? AND pi.purchase_id = pu.purchase_id AND pu.user_id = ? AND pi.purchase_id = ?
+	`, itemId, userId, purchaseId)
 
 	_, err := statement.ExecContext(ctx)
 
@@ -143,14 +170,14 @@ func (p Purchase) RemovePurchaseItem(ctx context.Context, purchaseId int64, item
 		return model.Purchase{}, util.MakeErrorUnknown(err)
 	}
 
-	return p.GetPurchaseByIdFetchItems(ctx, purchaseId)
+	return p.GetPurchaseByIdFetchItems(ctx, userId, purchaseId)
 }
 
-func (p Purchase) getAllPurchaseItemByPurchaseId(ctx context.Context, purchaseId int64, purchase model.Purchase) ([]model.PurchaseItem, error) {
+func (p Purchase) getAllPurchaseItemByPurchaseId(ctx context.Context, userId, purchaseId int64, purchase model.Purchase) ([]model.PurchaseItem, error) {
 	statement := p.DbConnection.NewSession(nil).SelectBySql(FETCH_PURCHASE_ITEM+`
 	AND pi.purchase_id = ?
 	ORDER BY purchase_item_purchased, purchase_item_quantity ASC
-	`, purchaseId)
+	`, userId, purchaseId)
 
 	var items []repositoryModel.PurchaseItemProductInstance
 	_, err := statement.LoadContext(ctx, &items)
@@ -168,18 +195,18 @@ func (p Purchase) getAllPurchaseItemByPurchaseId(ctx context.Context, purchaseId
 	return results, nil
 }
 
-func (p Purchase) GetPurchaseByIdFetchItems(ctx context.Context, id int64) (model.Purchase, error) {
-	return p.getPurchaseByIdInternal(ctx, id, true)
+func (p Purchase) GetPurchaseByIdFetchItems(ctx context.Context, userId, id int64) (model.Purchase, error) {
+	return p.getPurchaseByIdInternal(ctx, userId, id, true)
 }
 
-func (p Purchase) GetPurchaseById(ctx context.Context, id int64) (model.Purchase, error) {
-	return p.getPurchaseByIdInternal(ctx, id, false)
+func (p Purchase) GetPurchaseById(ctx context.Context, userId, id int64) (model.Purchase, error) {
+	return p.getPurchaseByIdInternal(ctx, userId, id, false)
 }
 
-func (p Purchase) getPurchaseByIdInternal(ctx context.Context, id int64, fetchItems bool) (model.Purchase, error) {
+func (p Purchase) getPurchaseByIdInternal(ctx context.Context, userId, id int64, fetchItems bool) (model.Purchase, error) {
 	statement := p.DbConnection.NewSession(nil).SelectBySql(FETCH_PURCHASE+`
 		  AND p.ID = ?
-		`, id)
+		`, userId, id)
 
 	var purchase repositoryModel.PurchaseEntity
 	err := statement.LoadOne(&purchase)
@@ -195,7 +222,7 @@ func (p Purchase) getPurchaseByIdInternal(ctx context.Context, id int64, fetchIt
 	if !fetchItems {
 		return result, nil
 	}
-	result.Items, err = p.getAllPurchaseItemByPurchaseId(ctx, id, result)
+	result.Items, err = p.getAllPurchaseItemByPurchaseId(ctx, userId, id, result)
 	if err != nil {
 		return model.Purchase{}, util.MakeErrorUnknown(err)
 	}
@@ -203,12 +230,12 @@ func (p Purchase) getPurchaseByIdInternal(ctx context.Context, id int64, fetchIt
 	return result, nil
 }
 
-func (p Purchase) GetPurchaseItemById(ctx context.Context, purchaseId int64, id int64) (model.PurchaseItem, error) {
+func (p Purchase) GetPurchaseItemById(ctx context.Context, userId, purchaseId int64, id int64) (model.PurchaseItem, error) {
 	statement := p.DbConnection.NewSession(nil).SelectBySql(FETCH_PURCHASE_ITEM+`
 	AND pi.purchase_id = ?
 	AND pi.id = ?
 	ORDER BY purchase_item_purchased, purchase_item_quantity ASC
-	`, purchaseId, id)
+	`, userId, purchaseId, id)
 
 	var item repositoryModel.PurchaseItemProductInstance
 	err := statement.LoadOne(&item)
@@ -220,9 +247,7 @@ func (p Purchase) GetPurchaseItemById(ctx context.Context, purchaseId int64, id 
 }
 
 func (p Purchase) ListPurchase(ctx context.Context, userId int64) ([]model.Purchase, error) {
-	statement := p.DbConnection.NewSession(nil).SelectBySql(FETCH_PURCHASE+`
-	AND USER_ID = ?
-	`, userId)
+	statement := p.DbConnection.NewSession(nil).SelectBySql(FETCH_PURCHASE, userId)
 
 	var items []repositoryModel.PurchaseEntity
 	_, err := statement.LoadContext(ctx, &items)

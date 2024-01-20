@@ -34,22 +34,37 @@ func CreatePurchaseService(
 }
 
 func (p Purchase) CreatePurchase(ctx context.Context, purchase model.Purchase) (model.Purchase, error) {
-	if purchase.MarketId == nil || purchase.UserId == nil {
-		return model.Purchase{}, util.MakeError(util.INVALID_INPUT, "Invalid marketId or userId")
+	userId := util.GetUserFromContext(ctx)
+	if userId == nil {
+		return model.Purchase{}, util.MakeError(util.FORBIDDEN, "Forbidden")
 	}
 
-	purchase.Market.Id = purchase.MarketId
-	purchase.User.Id = purchase.UserId
+	isUserFound := false
+	for _, user := range purchase.Users {
+		if user.Id == userId {
+			isUserFound = true
+		}
+	}
+	if !isUserFound {
+		purchase.Users = append(purchase.Users, model.User{Id: userId})
+	}
 
 	created, err := p.PurchaseRepository.CreatePurchase(ctx, purchase)
 	if err != nil {
 		return model.Purchase{}, err
 	}
+
+	util.Logger(ctx).Infof("Created purchase (%v) %s", *created.Id, created.Name)
+
 	return p.GetPurchase(ctx, *created.Id)
 }
 
 func (p Purchase) AddItem(ctx context.Context, purchaseId int64, purchaseItem model.PurchaseItem) (model.Purchase, error) {
-	_, err := p.PurchaseRepository.GetPurchaseById(ctx, purchaseId)
+	userId := util.GetUserFromContext(ctx)
+	if userId == nil {
+		return model.Purchase{}, util.MakeError(util.FORBIDDEN, "Forbidden")
+	}
+	_, err := p.PurchaseRepository.GetPurchaseById(ctx, *userId, purchaseId)
 	if err != nil {
 		return model.Purchase{}, err
 	}
@@ -64,7 +79,7 @@ func (p Purchase) AddItem(ctx context.Context, purchaseId int64, purchaseItem mo
 	}
 	purchaseItem.Product = product
 
-	_, err = p.PurchaseRepository.AddPurchaseItem(ctx, purchaseId, purchaseItem)
+	_, err = p.PurchaseRepository.AddPurchaseItem(ctx, *userId, purchaseId, purchaseItem)
 	if err != nil {
 		return model.Purchase{}, err
 	}
@@ -120,7 +135,11 @@ func (p Purchase) calculateRealPrice(productInstance model.PurchaseItem) *float6
 }
 
 func (p Purchase) RemoveItem(ctx context.Context, purchaseId int64, purchaseItemId int64) (model.Purchase, error) {
-	_, err := p.PurchaseRepository.RemovePurchaseItem(ctx, purchaseId, purchaseItemId)
+	userId := util.GetUserFromContext(ctx)
+	if userId == nil {
+		return model.Purchase{}, util.MakeError(util.FORBIDDEN, "Forbidden")
+	}
+	_, err := p.PurchaseRepository.RemovePurchaseItem(ctx, *userId, purchaseId, purchaseItemId)
 	if err != nil {
 		return model.Purchase{}, err
 	}
@@ -128,7 +147,11 @@ func (p Purchase) RemoveItem(ctx context.Context, purchaseId int64, purchaseItem
 }
 
 func (p Purchase) UpdateItem(ctx context.Context, purchaseId int64, purchaseItemId int64, item model.PurchaseItem) (model.Purchase, error) {
-	_, err := p.PurchaseRepository.GetPurchaseItemById(ctx, purchaseId, purchaseItemId)
+	userId := util.GetUserFromContext(ctx)
+	if userId == nil {
+		return model.Purchase{}, util.MakeError(util.FORBIDDEN, "Forbidden")
+	}
+	_, err := p.PurchaseRepository.GetPurchaseItemById(ctx, *userId, purchaseId, purchaseItemId)
 	if err != nil {
 		return model.Purchase{}, util.MakeError(util.NOT_FOUND, "Failed to get purchase Item")
 	}
@@ -139,7 +162,7 @@ func (p Purchase) UpdateItem(ctx context.Context, purchaseId int64, purchaseItem
 	}
 	item.Product = product
 
-	err = p.PurchaseRepository.UpdatePurchaseItem(ctx, purchaseId, purchaseItemId, item)
+	err = p.PurchaseRepository.UpdatePurchaseItem(ctx, *userId, purchaseId, purchaseItemId, item)
 	if err != nil {
 		return model.Purchase{}, err
 	}
@@ -147,7 +170,11 @@ func (p Purchase) UpdateItem(ctx context.Context, purchaseId int64, purchaseItem
 }
 
 func (p Purchase) GetPurchase(ctx context.Context, id int64) (model.Purchase, error) {
-	purchase, err := p.PurchaseRepository.GetPurchaseByIdFetchItems(ctx, id)
+	userId := util.GetUserFromContext(ctx)
+	if userId == nil {
+		return model.Purchase{}, util.MakeError(util.FORBIDDEN, "Forbidden")
+	}
+	purchase, err := p.PurchaseRepository.GetPurchaseByIdFetchItems(ctx, *userId, id)
 	if err != nil {
 		return model.Purchase{}, err
 	}
@@ -172,11 +199,18 @@ func (p Purchase) GetPurchase(ctx context.Context, id int64) (model.Purchase, er
 }
 
 func (p Purchase) GetAllPurchase(ctx context.Context) ([]model.Purchase, error) {
-	var userId int64 = 1 // TODO user hardcoded
-	return p.PurchaseRepository.ListPurchase(ctx, userId)
+	userId := util.GetUserFromContext(ctx)
+	if userId == nil {
+		return []model.Purchase{}, util.MakeError(util.FORBIDDEN, "Forbidden")
+	}
+	return p.PurchaseRepository.ListPurchase(ctx, *userId)
 }
 
 func (p Purchase) DeletePurchase(ctx context.Context, id int64) error {
+	userId := util.GetUserFromContext(ctx)
+	if userId == nil {
+		return util.MakeError(util.FORBIDDEN, "Forbidden")
+	}
 	purchase, err := p.GetPurchase(ctx, id)
 	if err != nil {
 		return err
@@ -189,9 +223,13 @@ func (p Purchase) DeletePurchase(ctx context.Context, id int64) error {
 		}
 	}
 
-	return p.PurchaseRepository.DeletePurchase(ctx, id)
+	return p.PurchaseRepository.DeletePurchase(ctx, *userId, id)
 }
 
 func (p Purchase) GetItem(ctx context.Context, purchaseId int64, purchaseItemId int64) (model.PurchaseItem, error) {
-	return p.PurchaseRepository.GetPurchaseItemById(ctx, purchaseId, purchaseItemId)
+	userId := util.GetUserFromContext(ctx)
+	if userId == nil {
+		return model.PurchaseItem{}, util.MakeError(util.FORBIDDEN, "Forbidden")
+	}
+	return p.PurchaseRepository.GetPurchaseItemById(ctx, *userId, purchaseId, purchaseItemId)
 }
